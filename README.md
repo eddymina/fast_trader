@@ -1,14 +1,14 @@
 # Welcome to `fast_trader`
 
-#### Fast Trader is a simple yet fast deeplearning and statistics ready library for trading RND projects. The layout is simple clean and understandable. This is the first release. Signifcant model improvements will happend over time.
+#### Fast Trader is a simple yet fast deeplearning and statistics ready library for trading RND projects. The layout is simple clean and understandable. This is the first release. Models will be improved over time.
 
 ---
 
 #### Getting started (Docs coming soon)
 
-Clone this [repo](https://github.com/eddymina/fast_trader.git). This will eventually be pip installable. 
+Clone this repo `git clone https://github.com/eddymina/fast_trader.git` This will eventually be pip installable. 
 
-Use this quick start notebook [repo](https://github.com/eddymina/fast_trader/blob/master/Quick%20Start.ipynb). This will eventually be pip installable. 
+Use this quick start notebook [repo](https://github.com/eddymina/fast_trader/blob/master/Quick%20Start.ipynb).
 
 
 ```python
@@ -42,7 +42,7 @@ msft.close.date_range('01-10-2010')[::1]\
 		# .dropna(inplace=0,newarray=True)\# will not return new array if no nans found					# and many many more features 
 
 ```
-### Uses numpy backend for 5x indexing than pandas but numpy and panda friendly. 
+### Uses numpy backend for 5x indexing than pandas, but numpy and pandas friendly. 
 
 ```python
 #numpy ops work here and preseve data information if they match 
