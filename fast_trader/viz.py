@@ -1,6 +1,8 @@
 import numpy as np 
 from .utils import TraderError, TraderWarning, isTrader 
-from .array_ops import TraderDict, TraderArray
+# from .array_ops import TraderArray
+# from .dict_ops import TraderDict
+# from .matrix_ops import TraderMatrix
 import matplotlib.pyplot as plt 
 import datetime as dt 
 

@@ -8,12 +8,11 @@ Its default is '%m-%d-%Y %H:%M:%S'
 
 import datetime as dt 
 from pandas.core.tools.datetimes import _guess_datetime_format
-from .utils import TraderError, TraderWarning, isTrader 
+from .utils import TraderError, TraderWarning 
 import numpy as np 
+import pandas as pd 
 
 DATE_FORMAT="%m-%d-%Y %H:%M:%S"
-
-
 
 def NYC_TIME():
     """
@@ -112,83 +111,101 @@ class Date:
         return datestr
 
     def to_datetime(self):
-        return str2date(self.datestr())
+        try:
+            return str2date(self.datestr())
+        except:
+            return pd.to_datetime(self.date)
+
+
+    def to_npdatetime64(self):
+        try:
+            return np.datetime64(self.date)
+        except:
+            try:
+                return np.datetime64(self.to_datetime())
+            except:
+                raise TraderError('Unable to convert to format.')
 
     def __repr__(self):
         return '<trader Date:: {}>'.format(self.date)
     
-class Dates:
-    
-    def __init__(self,date_info,same_format=True):
-        """
-        Dates Object #storing a (1D) series 
-        ...................Inputs...................
-        
-        date_info:: 1D arraylike input of (str),datetime_object(s)
-        same_format:: dateformat to parse information (will be guessed). 
-        
-            If true, will assume that the first format is same as other inputs 
-            (much faster)
-        ...................Outputs...................
-        
-        Dates object formed based on DATE FORMAT
-        attr::
-            .dates (array of Date Items)
-            .datestrings (dates as a string)
-            .datetimes (datetimes array )
-            .min (oldest datetime)
-            .max (most recent datetime)
 
-        .time_delta()
-            returns::
-            tdeltas (dates[1:] - dates[:-1] ) #will be positive if date info sorted from older to new
-            tdelta  (unique time delta(s))
+class Dates:
+    """
+    Dates Object #storing a (1D) series 
+    ...................Inputs...................
+
+    date_info:: 1D arraylike input of (str),datetime_object(s)
+    same_format:: dateformat to parse information (will be guessed). 
+
+        If true, will assume that the first format is same as other inputs 
+        (much faster)
+    ...................Outputs...................
+
+    Dates object formed based on DATE FORMAT
+    attr::
+        .dates (array of Date Items)
+        .datestrings (dates as a string)
+        .datetimes (datetimes array )
+        .min (oldest datetime)
+        .max (most recent datetime)
+
+    .time_delta()
+        returns::
+        tdeltas (dates[1:] - dates[:-1] ) #will be positive if date info sorted from older to new
+        tdelta  (unique time delta(s))
+
+    ...................Example(s)...................  
+    >> import pandas as pd 
+    >> D= Dates('5/10/2020') #not recommended (use dates)
+    [<trader Date:: 05-10-2020 00:00:00>]
+
+    >> dates=Dates(pd.date_range(start='1/1/2018', end='1/08/2018'))
+    <TraderDates:: shape=(8,), start=2018-01-01 00:00:00, stop=2018-01-08 00:00:00>
+
+    >> dates[4:] #indexable
+    <TraderDates:: shape=(4,), start=2018-01-05 00:00:00, stop=2018-01-08 00:00:00>
+
+    >> for d in dates[4:]:
+          print(d) #iterable 
         
-        ...................Example(s)...................  
-        >> import pandas as pd 
-        >> D= Dates('5/10/2020') #not recommended (use dates)
-        [<trader Date:: 05-10-2020 00:00:00>]
+        <trader Date:: 01-05-2018 00:00:00>
+        <trader Date:: 01-06-2018 00:00:00>
+        <trader Date:: 01-07-2018 00:00:00>
+        <trader Date:: 01-08-2018 00:00:00>
         
-        >> dates=Dates(pd.date_range(start='1/1/2018', end='1/08/2018'))
-        <TraderDates:: shape=(8,), start=2018-01-01 00:00:00, stop=2018-01-08 00:00:00>
+    >> dates.dates #returns dates 
+    >> dates.datetimes #returns datetimes 
+    >> print(dates.time_delta()[0][0])
+    1 day, 0:00:00
+    """
+    def __init__(self,date_info,same_format=True):
         
-        >> dates[4:] #indexable
-        <TraderDates:: shape=(4,), start=2018-01-05 00:00:00, stop=2018-01-08 00:00:00>
-        
-        >> for d in dates[4:]:
-              print(d) #iterable 
-            
-            <trader Date:: 01-05-2018 00:00:00>
-            <trader Date:: 01-06-2018 00:00:00>
-            <trader Date:: 01-07-2018 00:00:00>
-            <trader Date:: 01-08-2018 00:00:00>
-            
-        >> dates.dates #returns dates 
-        >> dates.datetimes #returns datetimes 
-        >> print(dates.time_delta()[0][0])
-        1 day, 0:00:00
-        """
         if hasattr(date_info, 'trader_dates') is True: #if its a Dates Class Pass 
             self.__dict__ = date_info.__dict__
+
         else:
-            if np.ndim(date_info)!=1:
-                #TraderWarning('date_info must be 1d. Inputs will be flattened.')
-                date_info= np.atleast_1d(date_info).ravel() #flatten data 
+            if hasattr(date_info,'__len__') is False: date_info= np.atleast_1d(date_info)
+            dtype= pd.api.types.infer_dtype(date_info)
+
+            if np.ndim(date_info)>1:
+                raise TraderError('Data Information must be 1Dimensional')
+
             self.trader_dates=True
-            if type(date_info[0]) is str:
+
+            if dtype == 'string':
                 if same_format is True:
                     dformat=guess_datetimef(date_info[0])
+                    self.dates= np.array([Date(d,dformat).date for d in date_info],dtype='O') #get dates info
                 else:
-                    dformat= None 
-                self.dates= np.array([Date(d,dformat).date for d in date_info]) #get dates info
+                    self.dates= pd.to_datetime(date_info)
+            elif 'datetime' in dtype:
+                self.dates=date_info#np.array(date_info,dtype='O')
             else:
-                if hasattr(date_info[0],'seconds') is False and hasattr(date_info[0],'second') is False:
-                    raise TraderError('Not Valid Date Object')
-
-                self.dates= date_info
-
-            self.min= self.dates[0]
-            self.max= self.dates[-1]
+                raise TraderError('Invalid Date Information')
+                
+            self.min= Date(self.dates[0]).to_datetime()
+            self.max= Date(self.dates[-1]).to_datetime()
             self.shape=(len(self.dates),)
 
     def nearest_date(self, value,return_ind=False):
@@ -219,6 +236,7 @@ class Dates:
     
     def __repr__(self):
         return '<TraderDates:: shape={}, start={}, stop={}>'.format(self.shape,self.min,self.max)
+    
 
 
 def daysinmonth(month,year):
@@ -229,7 +247,7 @@ def daysinmonth(month,year):
     month:: int [1,12]
     year:: 4 digit int (1997)
     """
-    date= dt.date(year=2020,month=month,day=1)
+    date= dt.date(year=year,month=month,day=1)
     res= (dt.date(year = date.year+int(date.month/12),
                   month = date.month % 12 +1, 
                   day = 1))
@@ -264,6 +282,41 @@ def addmonths(date,n=0):
                       month =sm,
                       day = day)
 
+
+class DateIndex:
+    def __init__(self,sdates,stock_list):
+        
+        self.stock_list= stock_list
+        
+        self.sdates=sdates
+        #flatten dates 
+        self.sdatesf=[item for sublist in sdates for item in sublist]
+        
+        #unique sorted dates 
+        self.date_index= np.array(sorted(set(self.sdatesf)),dtype='O') 
+        self.ind_dict = dict((k,i) for i,k in enumerate(self.date_index))
+
+        self.matrices=[]
+        self.columns= []
+        
+    def to_matrix(self):
+        for i,candidate_date in enumerate(self.sdates):
+            
+            datum=self.stock_list[i].data
+            matrix= np.empty(shape=(len(self.date_index),datum.shape[1]),dtype='float32')
+            matrix[:]=np.nan
+            matrix[self._inter(candidate_date)] = datum
+            self.matrices.append(matrix)
+
+            self.columns.extend(tuple([(self.stock_list[i].name,attr) for attr in self.stock_list[i].attrs]))
+            
+        self.matrices= np.hstack(self.matrices)
+
+    def _inter(self,candidate_dates):
+        return [self.ind_dict[x] for x in candidate_dates]
+
+
+
 class TimeDelta:
     """
     Extension of datetime timedelta
@@ -292,8 +345,8 @@ class TimeDelta:
         return addmonths(addyears(other,self.years),self.months)+self.datetime_td
     
     def __sub__(self, other):
-        return addmonths(addyears(other,self.years),self.months)+self.datetime_td
+        return addmonths(addyears(other,-self.years),-self.months)-self.datetime_td
         
     def __rsub__(self, other):
-        return addmonths(addyears(other,self.years),self.months)+self.datetime_td
+        return addmonths(addyears(other,-self.years),-self.months)-self.datetime_td
 
