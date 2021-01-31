@@ -452,7 +452,7 @@ class TraderMatrix(_traderTensor):
     def _validate_attrs(self,attrs):
         if attrs is None:
             attrs=list(range(self.data.shape[1]))
-        self.attrs=np.array(attrs,dtype='<U8').flatten()
+        self.attrs=np.array(attrs,dtype='str').flatten()
         self.nitems= self.attrs.shape[0]
         if self.nitems != self.data.shape[1]:
             raise TraderError('Number of items {} must be same as number of cols {}'.\
@@ -501,6 +501,7 @@ class TraderMatrix(_traderTensor):
                     date_info=self.date_info,
                     attrs= None,
                     name= name)
+
     def __repr__(self):
         """
         Representation of array. 
@@ -524,6 +525,8 @@ class TraderMatrix(_traderTensor):
         """
         Allows trader matrix indexing 
         """
+        if type(i)==str:
+            return self.__dict__[i]
         row_index,col_index=i,slice(None, None, None)
         if isinstance(i,tuple):
             row_index,col_index=i
@@ -575,6 +578,10 @@ class TraderMatrix(_traderTensor):
         return TraderArray(data= self.data[:,self._attr2col_index(attr) if isinstance(attr,str) else attr],
                            date_info=self.date_info,
                            name=str(attr))
+
+    def squeeze(self):
+        if self.shape[1]==1:
+            return self.tarray(self.attrs[0])
     
     def _split(self):
         tarrays=[]
@@ -594,7 +601,7 @@ class TraderDict:
         if attrs is None: 
             attrs= [arr.name for arr in tarrays]
             
-        self.attrs=np.array(attrs,dtype='<U8').flatten()
+        self.attrs=np.array(attrs,dtype='str').flatten()
         
         for i,arr in enumerate(tarrays): 
             type_arr=type(arr)
@@ -684,6 +691,9 @@ class TraderDict:
         """
         Allows trader matrix indexing 
         """
+        if type(i)==str:
+            return self.tmatrix(i)
+
         row_index,col_index=i,slice(None, None, None)
         if isinstance(i,tuple):
             row_index,col_index=i
@@ -702,7 +712,9 @@ class TraderDict:
         return TraderDict([arr.__getitem__(row_index) for arr in index],
                          attrs=self.attrs[col_index],name=self.name)
     
-    def tmatrix(self,attrs):
+    def tmatrix(self,attrs=None):
+        if attrs is None:
+            attrs= self.attrs
         if isinstance(attrs,str):
                 col_index= self._attr2col_index(attrs)
         elif hasattr(attrs,'__len__'):
@@ -711,14 +723,21 @@ class TraderDict:
         col_index=col_index if isinstance(col_index,slice) else self._atleast_1d(col_index)
         
         return itemgetter(*col_index)(self.tensor)
-                
-                
-    def _get_dates(self,):
+
+    def sparse_tmatrix(self,fill=0):
+        I = DateIndex(self._get_dates(),self.tensor)
+        I.to_matrix(fill)
+        attrs= ['_'.join(col).strip() for col in I.columns]
+
+        return TraderMatrix(data=I.matrices,
+            date_info=I.date_index,attrs=attrs,name=self.name)
+
+    def _get_dates(self):
         return [arr.date_info.dates for arr in self.tensor]
         
-    def to_df(self):
+    def to_df(self,fill=np.nan):
         I = DateIndex(self._get_dates(),self.tensor)
-        I.to_matrix()
+        I.to_matrix(fill=fill)
         return pd.DataFrame(I.matrices, index= I.date_index,columns = pd.MultiIndex.from_tuples(I.columns))
 
 

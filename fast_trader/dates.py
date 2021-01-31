@@ -299,12 +299,12 @@ class DateIndex:
         self.matrices=[]
         self.columns= []
         
-    def to_matrix(self):
+    def to_matrix(self,fill=np.nan):
         for i,candidate_date in enumerate(self.sdates):
             
             datum=self.stock_list[i].data
             matrix= np.empty(shape=(len(self.date_index),datum.shape[1]),dtype='float32')
-            matrix[:]=np.nan
+            matrix[:]=fill
             matrix[self._inter(candidate_date)] = datum
             self.matrices.append(matrix)
 
